@@ -2,7 +2,7 @@
 # 支持 ARM64 架构 (群晖 NAS)
 
 # 第一阶段：构建阶段
-FROM rust:1.75-alpine AS builder
+FROM rust:1.87-alpine AS builder
 
 # 安装构建依赖
 RUN apk add --no-cache \
@@ -14,23 +14,22 @@ WORKDIR /app
 # 复制 Cargo 文件
 COPY Cargo.toml Cargo.lock ./
 
-# 预下载依赖并缓存（使用 cargo vendor 加速）
-RUN cargo vendor --locked
-
 # 创建虚拟项目以缓存依赖
 RUN mkdir src && \
     echo "fn main() {}" > src/main.rs && \
-    cargo build --release --offline && \
+    cargo build --release && \
     rm -rf src
 
 # 复制源代码
 COPY src/ ./src/
 
-# 重新构建应用（使用离线模式）
-RUN cargo build --release --offline
+# 重新构建应用
+RUN cargo build --release
 
 # 第二阶段：运行阶段
 FROM alpine:3.19
+
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # 安装运行时依赖
 RUN apk add --no-cache \

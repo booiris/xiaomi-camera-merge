@@ -42,6 +42,7 @@ impl std::fmt::Display for MergeLevel {
 struct VideoFile {
     path: PathBuf,
     timestamp: DateTime<Utc>,
+    parent_hour: String,
 }
 
 struct VideoMerger {
@@ -93,8 +94,9 @@ impl VideoMerger {
                 // 检查目录名是否符合 yyyyMMddHH 格式
                 if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
                     if dir_name.len() == 10 && dir_name.chars().all(|c| c.is_ascii_digit()) {
-                        // 递归处理子目录
-                        let sub_files = self.collect_video_files(&path)?;
+                        // 递归处理子目录，传递父目录小时信息
+                        let sub_files =
+                            self.collect_video_files_with_parent_hour(&path, dir_name)?;
                         video_files.extend(sub_files);
                     }
                 }
@@ -102,15 +104,23 @@ impl VideoMerger {
                 // 检查是否是视频文件
                 if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
                     if let Some(captures) = self.video_regex.captures(file_name) {
-                        if let (Ok(_minutes), Ok(_seconds), Ok(timestamp)) = (
+                        if let (Ok(_minutes), Ok(_seconds), Ok(_timestamp)) = (
                             captures[1].parse::<u32>(),
                             captures[2].parse::<u32>(),
                             captures[3].parse::<i64>(),
                         ) {
+                            // 从父目录名解析时间，而不是使用Unix时间戳
+                            let parent_hour = self.extract_parent_hour_from_path(&path);
+                            let timestamp = self.parse_timestamp_from_parent_hour(
+                                &parent_hour,
+                                &captures[1],
+                                &captures[2],
+                            )?;
+
                             let video_file = VideoFile {
                                 path,
-                                timestamp: DateTime::from_timestamp(timestamp, 0)
-                                    .unwrap_or_else(Utc::now),
+                                timestamp,
+                                parent_hour,
                             };
                             video_files.push(video_file);
                         }
@@ -120,6 +130,98 @@ impl VideoMerger {
         }
 
         Ok(video_files)
+    }
+
+    fn collect_video_files_with_parent_hour(
+        &self,
+        input_path: &Path,
+        parent_hour: &str,
+    ) -> Result<Vec<VideoFile>> {
+        let mut video_files = Vec::new();
+
+        for entry in fs::read_dir(input_path).context("读取输入目录失败")? {
+            let entry = entry.context("读取目录项失败")?;
+            let path = entry.path();
+
+            if path.is_dir() {
+                // 检查目录名是否符合 yyyyMMddHH 格式
+                if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
+                    if dir_name.len() == 10 && dir_name.chars().all(|c| c.is_ascii_digit()) {
+                        // 递归处理子目录
+                        let sub_files =
+                            self.collect_video_files_with_parent_hour(&path, dir_name)?;
+                        video_files.extend(sub_files);
+                    }
+                }
+            } else if path.is_file() {
+                // 检查是否是视频文件
+                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                    if let Some(captures) = self.video_regex.captures(file_name) {
+                        if let (Ok(_minutes), Ok(_seconds), Ok(_timestamp)) = (
+                            captures[1].parse::<u32>(),
+                            captures[2].parse::<u32>(),
+                            captures[3].parse::<i64>(),
+                        ) {
+                            // 使用父目录小时信息解析时间
+                            let timestamp = self.parse_timestamp_from_parent_hour(
+                                parent_hour,
+                                &captures[1],
+                                &captures[2],
+                            )?;
+
+                            let video_file = VideoFile {
+                                path,
+                                timestamp,
+                                parent_hour: parent_hour.to_string(),
+                            };
+                            video_files.push(video_file);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(video_files)
+    }
+
+    fn extract_parent_hour_from_path(&self, file_path: &Path) -> String {
+        // 从文件路径中提取父目录的小时信息
+        if let Some(parent) = file_path.parent() {
+            if let Some(parent_name) = parent.file_name().and_then(|n| n.to_str()) {
+                if parent_name.len() == 10 && parent_name.chars().all(|c| c.is_ascii_digit()) {
+                    return parent_name.to_string();
+                }
+            }
+        }
+        // 如果无法提取，返回当前时间的小时信息
+        Utc::now().format("%Y%m%d%H").to_string()
+    }
+
+    fn parse_timestamp_from_parent_hour(
+        &self,
+        parent_hour: &str,
+        minutes: &str,
+        seconds: &str,
+    ) -> Result<DateTime<Utc>> {
+        // 从父目录小时信息解析时间
+        if parent_hour.len() != 10 {
+            anyhow::bail!("父目录名格式错误，应为10位数字: {}", parent_hour);
+        }
+
+        let year = parent_hour[0..4].parse::<i32>().context("解析年份失败")?;
+        let month = parent_hour[4..6].parse::<u32>().context("解析月份失败")?;
+        let day = parent_hour[6..8].parse::<u32>().context("解析日期失败")?;
+        let hour = parent_hour[8..10].parse::<u32>().context("解析小时失败")?;
+        let minutes = minutes.parse::<u32>().context("解析分钟失败")?;
+        let seconds = seconds.parse::<u32>().context("解析秒数失败")?;
+
+        // 使用chrono创建DateTime
+        let naive_datetime = chrono::NaiveDateTime::new(
+            chrono::NaiveDate::from_ymd_opt(year, month, day).context("创建日期失败")?,
+            chrono::NaiveTime::from_hms_opt(hour, minutes, seconds).context("创建时间失败")?,
+        );
+
+        Ok(DateTime::from_naive_utc_and_offset(naive_datetime, Utc))
     }
 
     fn is_valid_video_file(&self, file_path: &Path) -> bool {
@@ -137,26 +239,28 @@ impl VideoMerger {
             return false;
         }
 
-        // 使用 FFmpeg 检查视频文件是否有效
-        let status = Command::new("ffmpeg")
-            .arg("-v")
-            .arg("quiet")
-            .arg("-i")
-            .arg(file_path)
-            .arg("-f")
-            .arg("null")
-            .arg("-")
-            .status();
+        true
 
-        status.is_ok() && status.unwrap().success()
+        // // 使用 FFmpeg 检查视频文件是否有效
+        // let status = Command::new("ffmpeg")
+        //     .arg("-v")
+        //     .arg("quiet")
+        //     .arg("-i")
+        //     .arg(file_path)
+        //     .arg("-f")
+        //     .arg("null")
+        //     .arg("-")
+        //     .status();
+
+        // status.is_ok() && status.unwrap().success()
     }
 
     fn merge_by_hour(&self, video_files: &[VideoFile]) -> Result<()> {
         let mut hourly_groups: HashMap<String, Vec<&VideoFile>> = HashMap::new();
 
-        // 按小时分组
+        // 按父目录小时分组，确保时区一致性
         for video_file in video_files {
-            let hour_key = video_file.timestamp.format("%Y%m%d%H").to_string();
+            let hour_key = video_file.parent_hour.clone();
             hourly_groups.entry(hour_key).or_default().push(video_file);
         }
 
@@ -193,9 +297,9 @@ impl VideoMerger {
     fn merge_by_day(&self, video_files: &[VideoFile]) -> Result<()> {
         let mut daily_groups: HashMap<String, Vec<&VideoFile>> = HashMap::new();
 
-        // 按天分组
+        // 按天分组，使用父目录小时信息的前8位作为日期
         for video_file in video_files {
-            let day_key = video_file.timestamp.format("%Y%m%d").to_string();
+            let day_key = video_file.parent_hour[..8].to_string();
             daily_groups.entry(day_key).or_default().push(video_file);
         }
 
