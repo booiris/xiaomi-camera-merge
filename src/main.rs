@@ -259,6 +259,12 @@ impl VideoMerger {
         // status.is_ok() && status.unwrap().success()
     }
 
+    /// 检查是否为当天的视频
+    fn is_today_video(&self, date_str: &str) -> bool {
+        let today = Local::now().format("%Y%m%d").to_string();
+        date_str == today
+    }
+
     fn merge_by_hour(&self, video_files: &[VideoFile]) -> Result<()> {
         let mut hourly_groups: HashMap<String, Vec<&VideoFile>> = HashMap::new();
 
@@ -275,6 +281,13 @@ impl VideoMerger {
 
             // 创建输出目录结构
             let date_str = &hour_key[..8]; // 取前8位作为日期
+
+            // 跳过当天的视频，因为还没有录制完成
+            if self.is_today_video(date_str) {
+                println!("跳过当天的视频: {} (日期: {})", hour_key, date_str);
+                continue;
+            }
+
             let output_dir = Path::new(&self.args.output).join(date_str);
             let output_file = output_dir.join(format!("{}.mp4", hour_key));
 
@@ -309,6 +322,12 @@ impl VideoMerger {
 
         for (day_key, files) in daily_groups {
             if files.is_empty() {
+                continue;
+            }
+
+            // 跳过当天的视频，因为还没有录制完成
+            if self.is_today_video(&day_key) {
+                println!("跳过当天的视频: {} (日期: {})", day_key, day_key);
                 continue;
             }
 
