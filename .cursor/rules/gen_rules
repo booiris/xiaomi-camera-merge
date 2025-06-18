@@ -1,0 +1,5 @@
+/Generate Cursor Rules 使用英文写一个 cursor rules，这个项目的作用是读取一个文件夹，然后递归遍历文件夹下的所有文件夹，第一层文件夹是yyyyMMddHH，然后第二层是mmMssS_unix秒级时间戳.mp4，合并这些mp4，可以合并为小时级或者天级。对于写入的结果，所有结果保存在一个固定的文件夹下，如果是小时级，则以yyyyMMdd为文件夹，结果写入这些文件夹下，如果是天级，则保存为yyyyMMdd.mp4。接受命令行参数指定合并级别、读取的文件夹位置、写入的文件夹位置。
+
+/Generate Cursor Rules @xiaomi-camera-merge.mdc 修改这个 rules，天级的输出改为以yyyyMMdd为文件夹，然后这个文件夹下写入yyyyMMdd.mp4
+
+/Generate Cursor Rules xiaomi-camera-merge.mdc 修改这个 rules，添加一项功能，创建一个 dockerfile，支持编译成docker 在群晖上运行，并且写一个支持群晖运行的 readme教程

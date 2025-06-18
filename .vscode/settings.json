@@ -1,0 +1,14 @@
+{
+    "cSpell.words": [
+        "addgroup",
+        "adduser",
+        "appuser",
+        "BUILDKIT",
+        "chrono",
+        "cpus",
+        "healthcheck",
+        "pacman",
+        "serde",
+        "tzdata"
+    ]
+}

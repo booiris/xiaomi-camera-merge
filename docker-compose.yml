@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  xiaomi-camera-merge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xiaomi-camera-merge:latest
+    container_name: xiaomi-camera-merge
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+      - RUST_LOG=info
+    volumes:
+      # 输入目录（只读）
+      - ./input:/app/input:ro
+      # 输出目录
+      - ./output:/app/output
+      # 日志目录
+      - ./logs:/app/logs
+    user: "1000:1000"
+    healthcheck:
+      test: ["CMD", "ps", "aux", "|", "grep", "xiaomi-camera-merge"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    # 资源限制（可选）
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    # 网络配置（可选）
+    networks:
+      - xiaomi-network
+
+networks:
+  xiaomi-network:
+    driver: bridge 

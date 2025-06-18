@@ -1,0 +1,92 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Xiaomi Camera Video Merge Project
+
+## Project Overview
+This project is a Rust application designed to merge MP4 video files from Xiaomi cameras. It recursively traverses directories containing video files organized by timestamp and merges them into hourly or daily consolidated videos. The project use rust edition 2024.
+
+## Project Structure
+- [Cargo.toml](mdc:Cargo.toml) - Rust project configuration and dependencies
+- [src/main.rs](mdc:src/main.rs) - Main application entry point
+- [Dockerfile](mdc:Dockerfile) - Docker container configuration for Synology NAS deployment
+- [README_Synology.md](mdc:README_Synology.md) - Synology NAS deployment guide
+
+## Directory Structure Convention
+The input directory should follow this structure:
+```
+input_folder/
+├── 2024120110/          # yyyyMMddHH format (year, month, day, hour)
+│   ├── 30M15S_1701432000.mp4  # mmMssS_unix_timestamp.mp4 format
+│   ├── 30M15S_1701432060.mp4
+│   └── ...
+├── 2024120111/
+│   ├── 00M00S_1701435600.mp4
+│   └── ...
+└── ...
+```
+
+## Command Line Arguments
+The application accepts the following command line arguments:
+- `--level` or `-l`: Merge level - "hour" or "day"
+- `--input` or `-i`: Input folder path containing the video files
+- `--output` or `-o`: Output folder path for merged videos
+
+## Output Structure
+### Hourly Merging
+When merging by hour, output structure:
+```
+output_folder/
+├── 20241201/           # yyyyMMdd folder
+│   ├── 2024120110.mp4  # yyyyMMddHH.mp4
+│   ├── 2024120111.mp4
+│   └── ...
+└── ...
+```
+
+### Daily Merging
+When merging by day, output structure:
+```
+output_folder/
+├── 20241201/           # yyyyMMdd folder
+│   └── 20241201.mp4    # yyyyMMdd.mp4
+├── 20241202/           # yyyyMMdd folder
+│   └── 20241202.mp4    # yyyyMMdd.mp4
+└── ...
+```
+
+## Key Features
+- Recursive directory traversal
+- MP4 video file merging
+- Timestamp-based organization
+- Flexible output structure based on merge level
+- Command line interface for configuration
+- Docker containerization for Synology NAS deployment
+
+## Implementation Notes
+- Use FFmpeg for video merging operations
+- Handle file sorting by timestamp
+- Validate input directory structure
+- Create output directories as needed
+- Error handling for missing or corrupted files
+- Multi-stage Docker build for optimized container size
+- Alpine Linux base image for minimal footprint
+- Volume mounting for input/output directories
+
+## Docker Support
+The project includes Docker containerization for easy deployment on Synology NAS:
+- Multi-stage build process for optimized image size
+- Alpine Linux base with FFmpeg support
+- Volume mounting for input and output directories
+- Non-root user for security
+- Health check support
+- Environment variable configuration
+
+## Synology NAS Deployment
+- Docker image optimized for ARM64 architecture (DSM 7.x)
+- Volume mapping for persistent storage
+- Scheduled task integration
+- Resource monitoring and logging
+- Backup and restore procedures
