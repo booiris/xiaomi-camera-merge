@@ -10,6 +10,7 @@ A Rust-based tool for merging MP4 video files recorded by Xiaomi cameras. It can
 - Support for hourly or daily video merging
 - Automatic video file sorting by timestamp
 - Video merging using FFmpeg (no re-encoding)
+- **Built-in scheduled execution mode** - run automatically at specified time daily
 - Docker containerization support
 - Synology NAS deployment ready
 - Command-line interface for easy use
@@ -78,6 +79,27 @@ docker run -v /path/to/input:/app/input -v /path/to/output:/app/output xiaomi-ca
 - `--level` or `-l`: Merge level, either "hour" (by hour) or "day" (by day), defaults to "hour"
 - `--input` or `-i`: Input folder path (required)
 - `--output` or `-o`: Output folder path (required)
+- `--schedule` or `-s`: Schedule time for daily execution (format: HH:MM, 24-hour format, e.g., "02:30")
+
+### Scheduled Execution
+
+The tool supports scheduled execution mode where it will run automatically at the specified time every day:
+
+```bash
+# Run scheduled mode at 2:30 AM daily
+./target/release/xiaomi-camera-merge \
+  --input /path/to/input/folder \
+  --output /path/to/output/folder \
+  --level hour \
+  --schedule 02:30
+```
+
+When using scheduled mode:
+- The program will wait until the specified time each day
+- It will automatically execute the merge operation
+- The program will continue running indefinitely until stopped
+- If the specified time has already passed for the current day, it will wait until the next day
+- All other command line arguments work the same as in immediate execution mode
 
 ### Input Directory Structure
 

@@ -4,12 +4,15 @@
 
 这是一个用 Rust 编写的工具，用于合并小米摄像头录制的 MP4 视频文件。它可以根据时间戳将视频文件按小时或按天进行合并，支持 Docker 容器化和群晖 NAS 部署。
 
+支持小米智能摄像机2 (云台版)
+
 ## 功能特性
 
 - 递归遍历目录结构
 - 支持按小时或按天合并视频
 - 自动按时间戳排序视频文件
 - 使用 FFmpeg 进行视频合并（不重新编码）
+- **内置定时执行模式** - 可在每天指定时间自动运行
 - Docker 容器化支持
 - 群晖 NAS 部署就绪
 - 命令行界面，易于使用
@@ -78,6 +81,7 @@ docker run -v /path/to/input:/app/input -v /path/to/output:/app/output xiaomi-ca
 - `--level` 或 `-l`: 合并级别，可选 "hour"（按小时）或 "day"（按天），默认为 "hour"
 - `--input` 或 `-i`: 输入文件夹路径（必需）
 - `--output` 或 `-o`: 输出文件夹路径（必需）
+- `--schedule` 或 `-s`: 每日定时执行时间（格式：HH:MM，24小时制，例如："02:30"）
 
 ### 输入目录结构
 
@@ -149,6 +153,26 @@ docker run -v /host/input:/app/input -v /host/output:/app/output \
   xiaomi-camera-merge:latest \
   --level hour --input /app/input --output /app/output
 ```
+
+### 定时执行
+
+工具支持定时执行模式，可以在每天指定的时间自动运行：
+
+```bash
+# 每天凌晨 2:30 定时执行
+./target/release/xiaomi-camera-merge \
+  --input /path/to/input/folder \
+  --output /path/to/output/folder \
+  --level hour \
+  --schedule 02:30
+```
+
+使用定时模式时：
+- 程序会等待到每天指定的时间
+- 自动执行合并操作
+- 程序会持续运行，直到手动停止
+- 如果当天指定的时间已经过了，会等待到第二天
+- 其他命令行参数与立即执行模式相同
 
 ## 工作原理
 

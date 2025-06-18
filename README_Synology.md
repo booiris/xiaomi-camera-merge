@@ -115,7 +115,62 @@ xiaomi-camera-merge --level hour --input /app/input --output /app/output
 xiaomi-camera-merge --level day --input /app/input --output /app/output
 ```
 
-### 2. 自动化运行
+### 2. 定时执行模式（推荐）
+
+#### 使用内置定时功能
+
+程序支持内置定时执行模式，无需外部调度器：
+
+```bash
+# 每天凌晨 2:30 自动执行小时合并
+docker run -d \
+  --name xiaomi-camera-merge-scheduled \
+  --restart unless-stopped \
+  -v /volume1/xiaomi-camera-merge/input:/app/input:ro \
+  -v /volume1/xiaomi-camera-merge/output:/app/output \
+  -v /volume1/xiaomi-camera-merge/logs:/app/logs \
+  -e TZ=Asia/Shanghai \
+  xiaomi-camera-merge:latest \
+  --level hour \
+  --input /app/input \
+  --output /app/output \
+  --schedule 02:30
+```
+
+#### 使用 Docker Compose 定时模式
+
+创建 `docker-compose.scheduled.yml` 文件：
+
+```yaml
+version: '3.8'
+
+services:
+  xiaomi-camera-merge-scheduled:
+    image: xiaomi-camera-merge:latest
+    container_name: xiaomi-camera-merge-scheduled
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+      - RUST_LOG=info
+    volumes:
+      - /volume1/xiaomi-camera-merge/input:/app/input:ro
+      - /volume1/xiaomi-camera-merge/output:/app/output
+      - /volume1/xiaomi-camera-merge/logs:/app/logs
+    user: "1000:1000"
+    command: [
+      "--level", "hour",
+      "--input", "/app/input",
+      "--output", "/app/output",
+      "--schedule", "02:30"
+    ]
+```
+
+启动定时服务：
+```bash
+docker-compose -f docker-compose.scheduled.yml up -d
+```
+
+### 3. 传统自动化运行
 
 #### 使用群晖任务计划
 

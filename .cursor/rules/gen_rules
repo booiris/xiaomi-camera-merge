@@ -3,3 +3,5 @@
 /Generate Cursor Rules @xiaomi-camera-merge.mdc 修改这个 rules，天级的输出改为以yyyyMMdd为文件夹，然后这个文件夹下写入yyyyMMdd.mp4
 
 /Generate Cursor Rules xiaomi-camera-merge.mdc 修改这个 rules，添加一项功能，创建一个 dockerfile，支持编译成docker 在群晖上运行，并且写一个支持群晖运行的 readme教程
+
+加个定时功能，用户输入 xx:xx 24 小时，然后程序在每天这个时候执行合并。对于这个新加的需求，更新到mdc 文件和readme 中

@@ -31,9 +31,10 @@ FROM alpine:3.19
 
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
-# 安装运行时依赖
+# 安装运行时依赖和时区数据
 RUN apk add --no-cache \
     ffmpeg \
+    tzdata \
     && rm -rf /var/cache/apk/*
 
 # 创建非 root 用户

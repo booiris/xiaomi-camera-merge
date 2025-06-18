@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Local, Utc};
 use clap::Parser;
 use regex::Regex;
 use std::collections::HashMap;
@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// 合并级别: "hour" 或 "day"
@@ -21,6 +21,10 @@ struct Args {
     /// 输出文件夹路径
     #[arg(short, long, default_value = "/app/output")]
     output: String,
+
+    /// 定时执行时间 (格式: HH:MM，24小时制，例如: 02:30)
+    #[arg(short, long)]
+    schedule: Option<String>,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -389,8 +393,80 @@ fn main() -> Result<()> {
         anyhow::bail!("FFmpeg 未安装或不在 PATH 中。请先安装 FFmpeg。");
     }
 
-    let merger = VideoMerger::new(args)?;
-    merger.run()?;
+    // 如果指定了定时参数，启动定时模式
+    if let Some(schedule_time) = &args.schedule {
+        run_scheduled_mode(&args, schedule_time)?;
+    } else {
+        // 立即执行一次
+        let merger = VideoMerger::new(args)?;
+        merger.run()?;
+    }
 
     Ok(())
+}
+
+fn run_scheduled_mode(args: &Args, schedule_time: &str) -> Result<()> {
+    // 解析时间格式 HH:MM
+    let time_parts: Vec<&str> = schedule_time.split(':').collect();
+    if time_parts.len() != 2 {
+        anyhow::bail!("时间格式错误，应为 HH:MM 格式，例如: 02:30");
+    }
+
+    let hour: u32 = time_parts[0].parse().context("解析小时失败")?;
+    let minute: u32 = time_parts[1].parse().context("解析分钟失败")?;
+
+    if hour > 23 || minute > 59 {
+        anyhow::bail!("时间格式错误，小时应在 0-23 之间，分钟应在 0-59 之间");
+    }
+
+    println!(
+        "定时模式已启动，将在每天 {}:{} 执行合并任务",
+        format_args!("{:02}", hour),
+        format_args!("{:02}", minute)
+    );
+
+    loop {
+        let now = Local::now();
+
+        // 创建今天的目标时间（使用Local时区）
+        let today_target = now
+            .date_naive()
+            .and_hms_opt(hour, minute, 0)
+            .expect("创建目标时间失败")
+            .and_local_timezone(Local)
+            .unwrap();
+
+        // 创建明天的目标时间
+        let tomorrow_target = today_target + Duration::days(1);
+
+        // 确定下一个目标时间
+        let target_datetime = if now >= today_target {
+            // 如果今天的目标时间已经过了，使用明天的时间
+            tomorrow_target
+        } else {
+            // 否则使用今天的时间
+            today_target
+        };
+
+        let sleep_duration = target_datetime.signed_duration_since(now);
+        let sleep_seconds = sleep_duration.num_seconds() as u64;
+
+        println!(
+            "下次执行时间: {}，等待 {} 秒",
+            target_datetime.format("%Y-%m-%d %H:%M:%S"),
+            sleep_seconds
+        );
+
+        // 等待到目标时间
+        std::thread::sleep(std::time::Duration::from_secs(sleep_seconds));
+
+        // 执行合并任务
+        println!("开始执行定时合并任务...");
+        let merger = VideoMerger::new(args.clone())?;
+        if let Err(e) = merger.run() {
+            eprintln!("合并任务执行失败: {}", e);
+        } else {
+            println!("定时合并任务完成");
+        }
+    }
 }
