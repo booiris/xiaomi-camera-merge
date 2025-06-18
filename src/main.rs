@@ -15,11 +15,11 @@ struct Args {
     level: MergeLevel,
 
     /// 输入文件夹路径
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "/app/input")]
     input: String,
 
     /// 输出文件夹路径
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "/app/output")]
     output: String,
 }
 
